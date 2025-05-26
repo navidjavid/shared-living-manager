@@ -1,0 +1,14 @@
+# Node.js
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Environment
+.env
+
+# Database (if you don't want to commit the local DB file)
+schedule.db
+
+# OS-specific
+.DS_Store
+Thumbs.db
