@@ -44,28 +44,7 @@
         </div>
       </div>
     <% }) %>
-    <h2 class="mt-4">➕ Add Expense</h2>
-<form action="/add-expense" method="post" class="row g-3">
-  <div class="col-md-3">
-    <label class="form-label">Payer</label>
-    <select class="form-select" name="payer" required>
-      <% people.forEach(p => { %>
-        <option value="<%= p.name %>"><%= p.name %></option>
-      <% }) %>
-    </select>
-  </div>
-  <div class="col-md-3">
-    <label class="form-label">Amount (€)</label>
-    <input type="number" step="0.01" class="form-control" name="amount" required>
-  </div>
-  <div class="col-md-4">
-    <label class="form-label">Description</label>
-    <input type="text" class="form-control" name="description" required>
-  </div>
-  <div class="col-md-2 d-flex align-items-end">
-    <button type="submit" class="btn btn-primary w-100">Add</button>
-  </div>
-</form>
+
   </div>
 </body>
 </html>
