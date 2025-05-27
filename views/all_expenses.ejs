@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= pageTitle %></title>
+     <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>All Expenses</h1>
+        <p><a href="/">&laquo; Back to Dashboard</a></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Payer</th>
+                    <th>Amount</th>
+                    <th>Description</th>
+                     <th>ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% expenses.forEach(expense => { %>
+                    <tr>
+                        <td><%= new Date(expense.date).toLocaleDateString('de-DE') %></td>
+                        <td><%= expense.payer %></td>
+                        <td>€<%= parseFloat(expense.amount).toFixed(2) %></td>
+                        <td><%= expense.description %></td>
+                        <td><%= expense.id %></td>
+                    </tr>
+                <% }); %>
+                <% if (expenses.length === 0) { %>
+                    <tr><td colspan="5">No expenses recorded yet.</td></tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

@@ -1,50 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin Panel</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= pageTitle %></title>
+    <link rel="stylesheet" href="/style.css">
 </head>
-<body class="p-4">
-  <div class="container">
-    <h1 class="mb-4">🏠 Shared Apartment Admin Panel</h1>
-    <h2>Cleaning Schedule (Next 4 Weeks)</h2>
-    <table class="table table-bordered">
-      <thead><tr><th>Week</th><th>Kitchen</th><th>Bathroom</th><th>Toilet</th></tr></thead>
-      <tbody>
-        <% upcomingWeeks.forEach(w => { %>
-          <tr><td><%= w.date %></td><td><%= w.kitchen %></td><td><%= w.bathroom %></td><td><%= w.toilet %></td></tr>
-        <% }) %>
-      </tbody>
-    </table>
+<body>
+    <div class="container">
+        <h1>Shared Living Manager Dashboard</h1>
 
-    <h2>Last 4 Expenses</h2>
-    <table class="table table-bordered">
-      <thead><tr><th>Date</th><th>Payer</th><th>Amount</th><th>Description</th></tr></thead>
-      <tbody>
-        <% expenses.forEach(e => { %>
-          <tr><td><%= e.date %></td><td><%= e.payer %></td><td>€<%= e.amount %></td><td><%= e.description %></td></tr>
-        <% }) %>
-      </tbody>
-    </table>
+        <div class="section">
+            <h2>Cleaning Schedule (Next 4 Weeks)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Week Starts (Sunday)</th>
+                        <th>Kitchen</th>
+                        <th>Bathroom</th>
+                        <th>Toilet (+ Wed)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% cleaningSchedule.forEach(week => { %>
+                        <tr>
+                            <td><%= new Date(week.date).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) %></td>
+                            <td><%= week.kitchen %></td>
+                            <td><%= week.bathroom %></td>
+                            <td><%= week.toilet %></td>
+                        </tr>
+                    <% }); %>
+                    <% if (cleaningSchedule.length === 0) { %>
+                        <tr><td colspan="4">No schedule available (add people via database).</td></tr>
+                    <% } %>
+                </tbody>
+            </table>
+            </div>
 
-    <h2>Balances</h2>
-    <% people.forEach(p => { %>
-      <div class="card mb-3">
-        <div class="card-header"><strong><%= p.name %></strong></div>
-        <div class="card-body">
-          <ul>
-            <% balances.filter(b => b.person_from === p.name).forEach(b => { %>
-              <li>Owes <%= b.person_to %>: €<%= b.amount.toFixed(2) %></li>
-            <% }) %>
-            <% balances.filter(b => b.person_to === p.name).forEach(b => { %>
-              <li>To Receive from <%= b.person_from %>: €<%= b.amount.toFixed(2) %></li>
-            <% }) %>
-          </ul>
+        <div class="section">
+            <h2>Recent Expenses (Last 4) <a href="/expenses" class="view-all-link">View All Expenses</a></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Payer</th>
+                        <th>Amount</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% expenses.forEach(expense => { %>
+                        <tr>
+                            <td><%= new Date(expense.date).toLocaleDateString('en-GB') %></td>
+                            <td><%= expense.payer %></td>
+                            <td>€<%= parseFloat(expense.amount).toFixed(2) %></td>
+                            <td><%= expense.description %></td>
+                        </tr>
+                    <% }); %>
+                    <% if (expenses.length === 0) { %>
+                        <tr><td colspan="4">No expenses yet.</td></tr>
+                    <% } %>
+                </tbody>
+            </table>
         </div>
-      </div>
-    <% }) %>
+        
+        <div class="section forms-section">
+            <div class="form-container">
+                <h3>Add New Expense</h3>
+                <form action="/add-expense" method="POST">
+                    <label for="payer">Payer:</label>
+                    <select id="payer" name="payer" required>
+                        <% peopleNames.forEach(personName => { %>
+                            <option value="<%= personName %>"><%= personName %></option>
+                        <% }); %>
+                         <% if (peopleNames.length === 0) { %>
+                            <option value="" disabled>Add people via database first</option>
+                        <% } %>
+                    </select>
+                    <label for="amount">Amount (€):</label>
+                    <input type="number" id="amount" name="amount" step="0.01" required>
+                    <label for="description">Description:</label>
+                    <input type="text" id="description" name="description" required>
+                    <button type="submit" <% if (peopleNames.length === 0) { %>disabled<% } %>>Add Expense</button>
+                </form>
+            </div>
+            </div>
 
-  </div>
+        <div class="section balances-grid-container"> <h2>Balances</h2>
+            <div class="balances-grid">
+                <% Object.keys(balances).forEach(personName => { %>
+                    <% const balanceInfo = balances[personName]; %>
+                    <div class="balance-card">
+                        <h3><%= personName %></h3>
+                          <p><strong>Net: €<%= balanceInfo.net.toFixed(2) %></strong>
+                            <% if (balanceInfo.net > 0.001) { %>
+                                <span class="positive">(is owed)</span>
+                            <% } else if (balanceInfo.net < -0.001) { %>
+                                <span class="negative">(owes)</span>
+                            <% } else { %>
+                                <span>(settled)</span>
+                            <% } %>
+                        </p>
+                        <div class="owes-list">
+                            <strong>Owes to Others:</strong>
+                            <ul>
+                                <% let hasOwes = false; %>
+                                <% Object.keys(balanceInfo.owes).forEach(toWhom => { %>
+                                    <% if (balanceInfo.owes[toWhom] > 0.001) { hasOwes = true; %>
+                                        <li><%= toWhom %>: €<%= balanceInfo.owes[toWhom].toFixed(2) %></li>
+                                    <% } %>
+                                <% }); %>
+                                <% if (!hasOwes) { %><li>Owes no one.</li><% } %>
+                            </ul>
+                        </div>
+                        <div class="owed-by-list">
+                            <strong>Owed By Others:</strong>
+                            <ul>
+                                <% let hasOwedBy = false; %>
+                                <% Object.keys(balanceInfo.owed_by).forEach(fromWhom => { %>
+                                     <% if (balanceInfo.owed_by[fromWhom] > 0.001) { hasOwedBy = true; %>
+                                        <li><%= fromWhom %>: €<%= balanceInfo.owed_by[fromWhom].toFixed(2) %></li>
+                                    <% } %>
+                                <% }); %>
+                                <% if (!hasOwedBy) { %><li>No one owes this person.</li><% } %>
+                            </ul>
+                        </div>
+                    </div>
+                <% }); %>
+                <% if (Object.keys(balances).length === 0) { %>
+                    <p>No balance information available (add people via database and log expenses).</p>
+                <% } %>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

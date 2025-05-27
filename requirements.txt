@@ -1,6 +1,0 @@
-express
-ejs
-sqlite3
-telegraf
-body-parser
-dotenv

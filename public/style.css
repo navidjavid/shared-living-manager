@@ -1,0 +1,172 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f7f6;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+h1, h2, h3 {
+    color: #2c3e50;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h2 { /* Applies to all H2, including "Balances" */
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    clear: both; /* Added to help with any float issues if they existed */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+th, td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #eaf2f8;
+    color: #34495e;
+}
+
+tbody tr:hover {
+    background-color: #f9f9f9;
+}
+
+.section {
+    margin-bottom: 40px;
+}
+
+.forms-section {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 20px; /* Reduced margin for tighter layout if needed */
+}
+
+.form-container {
+    flex: 1;
+    min-width: 300px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #fdfdfd;
+}
+
+.form-container h3 {
+    margin-top: 0;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+    width: calc(100% - 22px); /* Adjusted for padding and border */
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #3498db;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
+button:hover {
+    background-color: #2980b9;
+}
+button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+.view-all-link {
+    float: right;
+    font-size: 0.9em;
+    color: #3498db;
+    text-decoration: none;
+    line-height: normal; /* Align with h2 if needed */
+    margin-top: 5px; /* Adjust if h2 has more padding */
+}
+.view-all-link:hover {
+    text-decoration: underline;
+}
+
+.balances-grid-container { /* Renamed/Wrapped for clarity if needed */
+    /* This ensures the h2 for Balances is cleared before the grid starts */
+}
+
+.balances-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding-top: 10px; /* Ensure some space below the h2 underline */
+}
+
+.balance-card {
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #fdfdfd;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.balance-card h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.balance-card ul {
+    list-style-type: none;
+    padding-left: 0;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+.balance-card li {
+    padding: 4px 0;
+}
+.balance-card strong {
+    font-weight: 600;
+}
+.balance-card .positive { color: #27ae60; font-weight: bold; } /* Darker Green */
+.balance-card .negative { color: #c0392b; font-weight: bold; } /* Darker Red */
+
+a {
+    color: #3498db;
+}
+a:hover {
+    color: #2980b9;
+}

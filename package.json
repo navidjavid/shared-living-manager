@@ -4,14 +4,17 @@
   "description": "Telegram bot + admin panel for apartment cleaning and finance",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "initdb": "node init_db.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "ejs": "^3.1.9",
-    "sqlite3": "^5.1.6",
-    "telegraf": "^4.12.2",
+    "basic-auth": "^2.0.1",
     "body-parser": "^1.20.2",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "pg": "^8.11.3",
+    "telegraf": "^4.12.2"
   }
 }
