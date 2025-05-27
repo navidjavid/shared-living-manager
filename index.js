@@ -5,7 +5,8 @@ process.on('uncaughtException', (error) => { console.error('🚨 Uncaught Except
 console.log('[DEBUG] Script starting...');
 require('dotenv').config();
 console.log('[DEBUG] dotenv configured.');
-
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const path = require('path');
 const fs = require('fs'); // Needed if you use file-based CA for SSL with pg
