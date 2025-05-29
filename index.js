@@ -13,14 +13,14 @@ const fs = require('fs'); // Needed if you use file-based CA for SSL with pg
 const { Pool } = require('pg');
 const { Telegraf, Markup } = require('telegraf');
 const cron = require('node-cron');
-const basicAuth = require('basic-auth'); // For admin panel auth
+const session = require('express-session');
+const PgSession = require('connect-pg-simple')(session); // For storing sessions in PostgreSQL
+const bcrypt = require('bcrypt');
 console.log('[DEBUG] All main modules required.');
 
 // --- Environment Variable Checks & Setup ---
 if (!process.env.BOT_TOKEN) { console.error('❌ FATAL: BOT_TOKEN missing!'); process.exit(1); }
 if (!process.env.DATABASE_URL) { console.error('❌ FATAL: DATABASE_URL missing!'); process.exit(1); }
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const CRON_TIMEZONE = process.env.TIMEZONE || "Europe/Berlin"; // Ensure this is your WG's timezone
 
 const EPOCH_DATE_STRING = process.env.EPOCH_DATE || '2024-01-07'; // Default to a past Sunday
@@ -60,15 +60,23 @@ const pool = new Pool(poolOptions);
 const bot = new Telegraf(process.env.BOT_TOKEN);
 console.log('[DEBUG] Core objects (app, pool, bot) initialized.');
 
-// --- Authentication Middleware for Admin Panel ---
-const adminAuth = (req, res, next) => {
-    const user = basicAuth(req);
-    if (!user || user.name !== ADMIN_USERNAME || user.pass !== ADMIN_PASSWORD) {
-        res.set('WWW-Authenticate', 'Basic realm="Admin Area - WG Manager"');
-        return res.status(401).send('Authentication required to access the WG Admin Panel.');
+// --- Session Configuration ---
+app.use(session({
+    store: new PgSession({
+        pool : pool,                // Connection pool
+        tableName : 'user_sessions' // Use a direct table name for sessions
+        // createtableIfMissing: true // Optional: auto-creates session table if it doesn't exist
+    }),
+    secret: process.env.SESSION_SECRET || 'your_very_secret_key_for_sessions_123!', // CHANGE THIS IN .ENV
+    resave: false,
+    saveUninitialized: false, // True if you want to store sessions for unauthenticated users
+    cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (requires HTTPS)
+        httpOnly: true
     }
-    return next();
-};
+}));
+console.log('[DEBUG] Express session configured with connect-pg-simple.');
 
 // --- Express App Setup ---
 app.set('view engine', 'ejs');
@@ -78,6 +86,14 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/style.css', (req, res) => res.sendFile(path.join(__dirname, 'public', 'style.css')));
 console.log('[DEBUG] Express app setup complete.');
+
+// --- Authentication Middleware ---
+const ensureAuthenticated = (req, res, next) => {
+    if (req.session && req.session.user) {
+        return next(); // User is authenticated
+    }
+    res.redirect('/login'); // Not authenticated, redirect to login
+};
 
 // --- Database Query Helper ---
 async function query(text, params) {
@@ -297,8 +313,54 @@ const authenticateBotUser = async (ctx, next) => {
     }
 };
 
-// --- Express Routes (Apply adminAuth middleware) ---
-app.get('/', adminAuth, async (req, res) => {
+// --- Express Routes ---
+// Login Routes
+app.get('/login', (req, res) => {
+    // If user is already logged in, redirect to dashboard
+    if (req.session.user) {
+        return res.redirect('/');
+    }
+    res.render('login', { error: req.session.loginError }); // Pass error message if any
+    delete req.session.loginError; // Clear error after displaying
+});
+
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    console.log(`[AUTH_WEB] Login attempt for username: ${username}`);
+    try {
+        const result = await query('SELECT id, name, hashed_password FROM people WHERE name = $1 AND is_admin = TRUE', [username]);
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            const match = await bcrypt.compare(password, user.hashed_password);
+            if (match) {
+                req.session.user = { id: user.id, name: user.name }; // Store user info in session
+                console.log(`[AUTH_WEB] User ${user.name} logged in successfully.`);
+                return res.redirect('/');
+            }
+        }
+        console.log(`[AUTH_WEB] Login failed for username: ${username} (invalid credentials or not admin).`);
+        req.session.loginError = 'Invalid username or password, or not an admin.';
+        res.redirect('/login');
+    } catch (error) {
+        console.error('[AUTH_WEB] Error during login:', error);
+        req.session.loginError = 'An error occurred during login. Please try again.';
+        res.redirect('/login');
+    }
+});
+
+app.get('/logout', (req, res, next) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('[AUTH_WEB] Error destroying session:', err);
+            return next(err);
+        }
+        console.log('[AUTH_WEB] User logged out.');
+        res.redirect('/login');
+    });
+});
+
+// Protected Admin Routes
+app.get('/', ensureAuthenticated, async (req, res) => {
   console.log('[DEBUG] GET / route by admin');
   try {
     const upcomingSchedule = await getUpcomingCleaningSchedule(4);
@@ -309,6 +371,7 @@ app.get('/', adminAuth, async (req, res) => {
 
     res.render('index', {
       pageTitle: 'WG Dashboard',
+      user: req.session.user,
       cleaningSchedule: upcomingSchedule,
       expenses: expensesResult.rows,
       balances: balancesData,
@@ -320,12 +383,13 @@ app.get('/', adminAuth, async (req, res) => {
   }
 });
 
-app.get('/expenses', adminAuth, async (req, res) => {
+app.get('/expenses', ensureAuthenticated, async (req, res) => {
   console.log('[DEBUG] GET /expenses route by admin');
   try {
     const expensesResult = await query('SELECT * FROM expenses ORDER BY date DESC, id DESC');
     res.render('all_expenses', {
       pageTitle: 'All Expenses',
+      user: req.session.user,
       expenses: expensesResult.rows
     });
   } catch (err) {
@@ -334,7 +398,7 @@ app.get('/expenses', adminAuth, async (req, res) => {
    }
 });
 
-app.post('/add-expense', adminAuth, async (req, res) => {
+app.post('/add-expense', ensureAuthenticated, async (req, res) => {
   const { payer, amount, description } = req.body;
   console.log(`[DEBUG] POST /add-expense: Payer=${payer}, Amount=${amount}, Desc=${description}`);
   try {

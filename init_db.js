@@ -21,9 +21,11 @@ const pool = new Pool(poolOptions);
 const createTablesQuery = `
   CREATE TABLE IF NOT EXISTS people (
     id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
+    name TEXT UNIQUE NOT NULL,       -- This will be the username for login
     chat_id TEXT,
-    telegram_user_id BIGINT UNIQUE -- For authentication/identification
+    telegram_user_id BIGINT UNIQUE,
+    hashed_password TEXT,            -- To store the bcrypt hashed password
+    is_admin BOOLEAN DEFAULT FALSE   -- Flag for admin panel access
   );
 
   CREATE TABLE IF NOT EXISTS expenses (
@@ -52,15 +54,13 @@ async function initializeDatabase() {
   try {
     client = await pool.connect();
     console.log('Connected to PostgreSQL database.');
-    
     await client.query(createTablesQuery);
-    console.log('✅ Database tables (people, expenses, balances) checked/created.');
-    
-    // The INSERT statement for rotation_state has been removed.
-    
-    console.log('‼️ REMEMBER: Add people manually to the "people" table using pgAdmin or Supabase Table Editor, including their name and unique telegram_user_id.');
-    console.log('Database initialization complete. The rotation_state table is no longer used.');
-
+    console.log('✅ Database tables checked/created (people table updated for admin login).');
+    console.log('‼️ REMEMBER: For admin users, manually add/update their record in "people" table:');
+    console.log('   - Set a hashed_password (see separate instructions for generating a hash).');
+    console.log('   - Set is_admin = TRUE.');
+    console.log('   - Ensure telegram_user_id is set if they also use the bot.');
+    console.log('Database initialization complete.');
   } catch (err) {
     console.error('❌ Error initializing database:', err.stack);
   } finally {
