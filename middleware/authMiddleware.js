@@ -4,12 +4,21 @@
 const { query } = require('../config/db');
 
 const ensureAuthenticated = (req, res, next) => {
-    // console.log('[WEB_AUTH_MIDDLEWARE] Path:', req.path, 'Session User:', req.session ? req.session.user : 'No session');
-    if (req.session && req.session.user && req.session.user.name) {
-        return next(); // User is authenticated
+  console.log('[WEB_AUTH_MIDDLEWARE] Path:', req.path);
+    console.log('[WEB_AUTH_MIDDLEWARE] Session exists:', !!req.session);
+    if (req.session) {
+        console.log('[WEB_AUTH_MIDDLEWARE] Session ID on check:', req.session.id); // Log session ID
+        console.log('[WEB_AUTH_MIDDLEWARE] Session user on check:', req.session.user);
     }
-    req.session.loginError = 'Please log in to access this page.';
-    res.redirect('/login'); // Not authenticated, redirect to login
+
+    if (req.session && req.session.user && req.session.user.name) {
+        console.log('[WEB_AUTH_MIDDLEWARE] User IS authenticated:', req.session.user.name);
+        return next();
+    } else {
+        console.log('[WEB_AUTH_MIDDLEWARE] User IS NOT authenticated. Redirecting to /login.');
+        // req.session.loginError = 'Please log in to access this page.'; // Avoid setting error here if it's just a normal redirect
+        res.redirect('/login');
+    }
 };
 
 const authenticateBotUser = async (ctx, next) => {

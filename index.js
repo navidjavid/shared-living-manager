@@ -25,23 +25,29 @@ const { startCronJobs } = require('./jobs/cronJobs');
 
 const app = express();
 console.log('[INDEX] Express app initialized.');
+// TRUST THE REVERSE PROXY (RENDER)
+// This should be set before app.use(session(...))
+app.set('trust proxy', 1); // Trusts the first hop from the proxy
+console.log('[INDEX] Set "trust proxy" to 1.');
 
 // --- Session Configuration ---
 app.use(session({
     store: new PgSession({
         pool : pool,
         tableName : 'user_sessions',
-        createTableIfMissing: true
+        createTableIfMissing: true // This is good to keep
     }),
     secret: envConfig.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
+    resave: false, // Recommended: false
+    saveUninitialized: false, // Recommended: false (don't save session if nothing is modified)
     cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        secure: envConfig.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: 'Lax'
-    }
+        secure: false, // IMPORTANT for HTTPS on Render
+        httpOnly: true, // Good security practice
+        sameSite: 'Lax' // Good default for most apps, helps with CSRF
+    },
+    // Consider adding a name for your session cookie if you have multiple apps on the same domain
+    // name: 'wgmanager.sid' 
 }));
 console.log('[INDEX] Express session configured.');
 
