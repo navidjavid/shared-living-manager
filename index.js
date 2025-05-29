@@ -332,10 +332,23 @@ app.post('/login', async (req, res) => {
         if (result.rows.length > 0) {
             const user = result.rows[0];
             const match = await bcrypt.compare(password, user.hashed_password);
-            if (match) {
-                req.session.user = { id: user.id, name: user.name }; // Store user info in session
-                console.log(`[AUTH_WEB] User ${user.name} logged in successfully.`);
-                return res.redirect('/');
+           if (match) {
+                req.session.user = { id: user.id, name: user.name };
+                console.log(`[AUTH_WEB] User ${user.name} logged in successfully. Session user set.`);
+                req.session.save((err) => { // Explicitly save the session
+                    if (err) {
+                        console.error('[AUTH_WEB] Error saving session before redirect:', err);
+                        req.session.loginError = 'Session save error. Please try again.';
+                        return res.redirect('/login'); // Go back to login with an error
+                    }
+                    console.log('[AUTH_WEB] Session saved. Redirecting to /');
+                    return res.redirect('/'); // Now redirect
+                });
+            } else {
+                // ... handle failed match (invalid password)
+                console.log(`[AUTH_WEB] Password mismatch for username: ${username}`);
+                req.session.loginError = 'Invalid username or password, or not an admin.';
+                res.redirect('/login');
             }
         }
         console.log(`[AUTH_WEB] Login failed for username: ${username} (invalid credentials or not admin).`);
