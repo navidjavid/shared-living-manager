@@ -83,91 +83,110 @@ module.exports = function(bot) {
     });
 
     bot.command('mybalance', async (ctx) => {
-      // ctx.dbUser is set by the authenticateBotUser middleware
-      const userName = ctx.dbUser.name;
-      console.log(`[BOT_HANDLER] /mybalance request for ${userName}`);
+  // ctx.dbUser is set by the authenticateBotUser middleware
+  const userName = ctx.dbUser.name;
+  console.log(`[BOT_HANDLER] /mybalance request for ${userName}`);
 
-      try {
-        const allBalances = await getAggregatedBalances(); // Fetches balances for all users
-        
-        const userBalanceData = allBalances[userName]; // Get data for the specific user
+  try {
+    const allBalances = await getAggregatedBalances(); // Fetches balances for all users
+    const userBalanceData = allBalances[userName];    // Get data for the specific user
 
-        if (!userBalanceData) {
-          console.log(`[BOT_HANDLER] No balance information found for ${userName}.`);
-          return ctx.reply("Could not find your balance information. This might happen if you're new or have no expenses logged involving you.");
+    if (!userBalanceData) {
+      console.log(`[BOT_HANDLER] No balance information found for ${userName}.`);
+      return ctx.reply("Could not find your balance information. This might happen if you're new or have no expenses logged involving you.");
+    }
+
+    let reply = `*${userName}'s Balances:*\n\n`;
+    let owesSomeone = false; // Flag to track if user owes anyone
+
+    if (userBalanceData.owes && Object.keys(userBalanceData.owes).length > 0) {
+      Object.entries(userBalanceData.owes).forEach(([personTo, amount]) => {
+        if (parseFloat(amount) > 0.001) { // Check if amount is significant
+          reply += `➡️ You owe ${personTo}: €${parseFloat(amount).toFixed(2)}\n`;
+          owesSomeone = true; // Set flag to true
         }
+      });
+    }
+    
+    if (!owesSomeone) {
+      reply += "✅ You currently owe nothing to anyone directly!\n";
+    }
 
-        let reply = `*${userName}'s Balances:*\n\n`; // Added extra newline for readability
-        let owesSomeone = false;
-        if (userBalanceData.owes && Object.keys(userBalanceData.owes).length > 0) {
-          Object.entries(userBalanceData.owes).forEach(([personTo, amount]) => {
-            if (amount > 0.001) { // Check if amount is significant
-              reply += `➡️ You owe ${personTo}: €${parseFloat(amount).toFixed(2)}\n`;
-              owesSomeone = true;
-            }
-          });
+    reply += "\n"; // Separator
+
+    let owedBySomeone = false;
+    if (userBalanceData.owed_by && Object.keys(userBalanceData.owed_by).length > 0) {
+      Object.entries(userBalanceData.owed_by).forEach(([personFrom, amount]) => {
+        if (parseFloat(amount) > 0.001) { // Check if amount is significant
+          reply += `⬅️ ${personFrom} owes you: €${parseFloat(amount).toFixed(2)}\n`;
+          owedBySomeone = true;
         }
-        if (!owesSomeone) {
-          reply += "✅ You currently owe nothing to anyone!\n";
-        }
+      });
+    }
+    if (!owedBySomeone) {
+      reply += "✅ No one currently owes you anything directly!\n";
+    }
 
-        reply += "\n"; // Separator
+    reply += `\n*Net Balance: €${parseFloat(userBalanceData.net).toFixed(2)}*\n`;
+    if (userBalanceData.net > 0.001) {
+      reply += "(Overall, you are owed this much)\n";
+    } else if (userBalanceData.net < -0.001) {
+      reply += "(Overall, you owe this much)\n";
+    } else {
+      reply += "(Overall, your balances are effectively settled)\n";
+    }
 
-        let owedBySomeone = false;
-        if (userBalanceData.owed_by && Object.keys(userBalanceData.owed_by).length > 0) {
-          Object.entries(userBalanceData.owed_by).forEach(([personFrom, amount]) => {
-            if (amount > 0.001) { // Check if amount is significant
-              reply += `⬅️ ${personFrom} owes you: €${parseFloat(amount).toFixed(2)}\n`;
-              owedBySomeone = true;
-            }
-          });
-        }
-        if (!owedBySomeone) {
-          reply += "✅ No one currently owes you anything!\n";
-        }
+    // Conditionally add the "Settle My Debts" button
+    if (owesSomeone) {
+      ctx.replyWithMarkdown(reply, Markup.inlineKeyboard([
+          Markup.button.callback('🔄 Settle My Debts (Clear what I owe)', 'settle_my_debts')
+      ]));
+    } else {
+      ctx.replyWithMarkdown(reply); // Send message without the button
+    }
 
-        reply += `\n*Net Balance: €${parseFloat(userBalanceData.net).toFixed(2)}*\n`;
-        if (userBalanceData.net > 0.001) {
-          reply += "(Overall, you are owed this much)\n";
-        } else if (userBalanceData.net < -0.001) {
-          reply += "(Overall, you owe this much)\n";
-        } else {
-          reply += "(Overall, your balances are settled)\n";
-        }
-
-        ctx.replyWithMarkdown(reply, Markup.inlineKeyboard([
-            Markup.button.callback('🔄 Settle My Debts (Clear what I owe)', 'settle_my_debts')
-        ]));
-
-      } catch (error) {
-        console.error(`Error in /mybalance for ${userName}:`, error);
-        ctx.reply("Sorry, there was an error fetching your balance information. Please try again later.");
-      }
-    });
+  } catch (error) {
+    console.error(`Error in /mybalance for ${userName}:`, error);
+    ctx.reply("Sorry, there was an error fetching your balance information. Please try again later.");
+  }
+});
 
     bot.action('settle_my_debts', async (ctx) => {
-        if (!ctx.dbUser || !ctx.dbUser.name) return ctx.answerCbQuery("Error: Could not identify user.");
-        const userName = ctx.dbUser.name;
-        console.log(`[BOT_HANDLER] Action settle_my_debts for ${userName}`);
-        const client = await pool.connect(); // Get client from pool exported by db.js
-        try {
-            await client.query('BEGIN');
-            const result = await client.query('DELETE FROM balances WHERE person_from = $1 RETURNING *', [userName]);
-            await client.query('COMMIT');
-            if (result.rowCount > 0) {
-                await ctx.editMessageText(`✅ Your debts to others cleared (${result.rowCount} entries). Money owed to you remains.`);
-            } else {
-                await ctx.editMessageText(`✅ You had no debts to clear. Money owed to you remains.`);
-            }
-        } catch (error) {
+    if (!ctx.dbUser || !ctx.dbUser.name) { // dbUser should be set by authenticateBotUser middleware
+        console.error('[SETTLE_ACTION] Error: Could not identify user from context.');
+        return ctx.answerCbQuery("Error: Could not identify user. Please try /mybalance again.");
+    }
+    const userName = ctx.dbUser.name;
+    console.log(`[BOT_HANDLER] Action 'settle_my_debts' for user: ${userName}`);
+    
+    // Ensure pool is available. If botHandlers.js is a function that receives 'pool', use that.
+    // Otherwise, ensure it's correctly required from config/db.js
+    const { pool } = require('../config/db');
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+        // Only delete debts where the user (userName) is the one owing (person_from)
+        const result = await client.query('DELETE FROM balances WHERE person_from = $1 RETURNING *', [userName]);
+        await client.query('COMMIT');
+
+        if (result.rowCount > 0) {
+            await ctx.editMessageText(`✅ Your outstanding debts to others have been marked as settled (${result.rowCount} entries cleared). Money owed to you by others remains unchanged.`);
+            console.log(`[SETTLE_ACTION] ${userName} settled their debts to others. ${result.rowCount} balance entries removed.`);
+        } else {
+            await ctx.editMessageText(`✅ You had no outstanding debts to mark as settled. Money owed to you by others remains unchanged.`);
+        }
+        await ctx.answerCbQuery("Balances settled!"); // Provide feedback for the button press
+    } catch (error) {
         await client.query('ROLLBACK');
-        console.error(`[SETTLE] Error settling debts for ${userName}:`, error);
+        console.error(`[SETTLE_ACTION] Error settling debts for ${userName}:`, error);
         await ctx.answerCbQuery("Error settling debts. Please try again.");
-        await ctx.reply("Sorry, there was an error trying to settle your debts.");
+        // Optionally send a new message if editMessageText failed
+        await ctx.reply("Sorry, there was an error trying to settle your debts. Please check /mybalance again.");
     } finally {
         client.release();
     }
-    });
+});
     
     const expenseSessions = {}; // Consider moving to a more persistent session store if bot restarts often
     bot.command('addexpense', async (ctx) => {
