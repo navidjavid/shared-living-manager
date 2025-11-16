@@ -93,5 +93,25 @@ async function getAggregatedBalances() {
   });
   return userBalances;
 }
+async function settleDebts(userName) {
+    const { pool } = require('../config/db');
+    const client = await pool.connect();
 
-module.exports = { addExpenseAndSplit, getAggregatedBalances };
+    try {
+        await client.query('BEGIN');
+        // Delete all entries where 'userName' owes money to anyone
+        const result = await client.query('DELETE FROM balances WHERE person_from = $1 RETURNING *', [userName]);
+        await client.query('COMMIT');
+
+        console.log(`[FINANCE_SERVICE] ${userName} settled their debts to others. ${result.rowCount} balance entries removed.`);
+        return result.rowCount; // Return the count of debts settled
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error(`[FINANCE_SERVICE] Error settling debts for ${userName}:`, error);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+module.exports = { addExpenseAndSplit, getAggregatedBalances, settleDebts };

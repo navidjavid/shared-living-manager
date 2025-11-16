@@ -91,7 +91,18 @@
                 <% Object.keys(balances).forEach(personName => { %>
                     <% const balanceInfo = balances[personName]; %>
                     <div class="balance-card">
-                        <h3><%= personName %></h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                            <h3 style="margin: 0; border-bottom: none;"><%= personName %></h3>
+                            <% // Check if this card belongs to the logged-in user AND they owe money %>
+                            <% if (personName === user.name && balanceInfo.net < -0.001) { %>
+                                <form action="/settle-debts" method="POST" style="margin: 0;">
+                                    <button type="submit" class="button" 
+                                            style="padding: 5px 10px; font-size: 0.8em; margin: 0; white-space: nowrap;">
+                                        Settle My Debts
+                                    </button>
+                                </form>
+                            <% } %>
+                        </div>
                           <p><strong>Net: €<%= balanceInfo.net.toFixed(2) %></strong>
                             <% if (balanceInfo.net > 0.001) { %>
                                 <span class="positive">(is owed)</span>

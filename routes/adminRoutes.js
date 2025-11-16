@@ -3,6 +3,7 @@
 
 const express = require('express');
 const { getUpcomingCleaningSchedule } = require('../services/cleaningService');
+const { getAggregatedBalances, addExpenseAndSplit, settleDebts } = require('../services/financeService');
 const { getAggregatedBalances, addExpenseAndSplit } = require('../services/financeService');
 const { getPeople } = require('../services/peopleService');
 const { query } = require('../config/db'); // For direct queries like recent expenses
@@ -64,6 +65,19 @@ router.post('/add-expense', async (req, res) => {
     // For now, sending a simple error page or message
     res.status(400).send(`Error adding expense: ${error.message}. <a href="/">Go Back</a>`);
   }
+});
+router.post('/settle-debts', async (req, res) => {
+    const userName = req.session.user.name; // Get the name of the logged-in user (admin)
+    console.log(`[ADMIN_ROUTES] POST /settle-debts: User=${userName} initiating debt settlement.`);
+    try {
+        const clearedCount = await settleDebts(userName);
+        // Redirect back to the dashboard after settlement
+        res.redirect(`/?message=Debts+Settled!+${clearedCount}+entries+cleared.`);
+    } catch (error) {
+        console.error(`Failed to settle debts for ${userName} from web admin panel:`, error);
+        // Send a temporary error response
+        res.status(400).send(`Error settling debts: ${error.message}. <a href="/">Go Back</a>`);
+    }
 });
 
 module.exports = router;
