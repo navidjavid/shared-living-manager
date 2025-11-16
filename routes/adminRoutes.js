@@ -4,7 +4,6 @@
 const express = require('express');
 const { getUpcomingCleaningSchedule } = require('../services/cleaningService');
 const { getAggregatedBalances, addExpenseAndSplit, settleDebts } = require('../services/financeService');
-const { getAggregatedBalances, addExpenseAndSplit } = require('../services/financeService');
 const { getPeople } = require('../services/peopleService');
 const { query } = require('../config/db'); // For direct queries like recent expenses
 const router = express.Router();
